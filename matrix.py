@@ -2,7 +2,7 @@ class Matrix(object):
     """
     A cubic three dimensional matrix of integers.
 
-    The matrix can hold values between -126 ad 126 (inclusive).
+    The matrix can hold values between -126 and 126 (inclusive).
 
     Create an instance of this class by specifying the length of one of its
     sides. After that, you can call `execute(query)` to process a query.
@@ -11,8 +11,29 @@ class Matrix(object):
                   size 3 x 3 x 3. Between 1 and 100 (inclusive).
     """
 
-    # Withe-list supported methods to prevent malicious code execution.
-    METHODS = ['UPDATE', 'QUERY']
+    # List of supported methods, their callbacks and supported parameter types.
+    METHODS = {
+        'UPDATE': {
+            'callable': '_update',
+            'params': [
+                'subcoordinate',
+                'subcoordinate',
+                'subcoordinate',
+                'value'
+            ]
+        },
+        'QUERY': {
+            'callable': '_query',
+            'params': [
+                'subcoordinate',
+                'subcoordinate',
+                'subcoordinate',
+                'subcoordinate',
+                'subcoordinate',
+                'subcoordinate'
+            ]
+        }
+    }
 
     def __init__(self, n: int):
         if type(n) is not int:
@@ -37,7 +58,7 @@ class Matrix(object):
 
             - `UPDATE x y z W`
                 Set the value of cell x, y, z to W. W must take values between
-                -126 ad 126 (inclusive). Returns `None`.
+                -126 and 126 (inclusive). Returns `None`.
             - `QUERY x1 y1 z1 x2 y2 z2`
                 Get the sum of values between x1, y1, z1 and x2, y2, z2. Note
                 that x1 should be less than or equal to x2, y1 less than or
@@ -59,14 +80,19 @@ class Matrix(object):
         if params:
             # Get query method in uppercase.
             method = params[0].upper()
-            # Check if it is secure.
+            # Get method definition.
             if method in Matrix.METHODS:
-                # Get the actual function name.
-                attr_name = '_' + method.lower()
-                func = getattr(self, attr_name)
-                # Catch known exceptions of inner methods.
+                method_def = Matrix.METHODS[method]
+                func = getattr(self, method_def['callable'])
+                # Catch known exceptions.
                 try:
-                    result = func(*params[1:])
+                    # Execute the function with validated parameters.
+                    validated_params = map(
+                        self._validate_param,
+                        method_def['params'],
+                        params[1:]
+                    )
+                    result = func(*validated_params)
                     # We can assume that the method was executed succesfully.
                     success = 'SUCCESS'
                 except (TypeError, ValueError):
@@ -74,39 +100,24 @@ class Matrix(object):
                     pass
         return (success, result)
 
-    # Checks a valid sub-coordinate value.
-    def _check_value(self, value):
-        if not 1 <= value <= len(self._cells):
-            raise ValueError
+    # Validate and curate a query parameter.
+    def _validate_param(self, type, val):
+        val_int = int(val)
+        if type == 'subcoordinate':
+            if not 1 <= val_int <= len(self._cells):
+                raise ValueError
+        elif type == 'value':
+            if not -126 <= val_int <= 126:
+                raise ValueError
+        return val_int
 
     # Update method.
     def _update(self, x, y, z, w):
-        x = int(x)
-        y = int(y)
-        z = int(z)
-        w = int(w)
-        self._check_value(x)
-        self._check_value(y)
-        self._check_value(z)
-        if not -126 <= w <= 126:
-            raise ValueError
         self._cells[x - 1][y - 1][z - 1] = w
 
     # Query method.
     def _query(self, x1, y1, z1, x2, y2, z2):
         sum = 0
-        x1 = int(x1)
-        y1 = int(y1)
-        z1 = int(z1)
-        x2 = int(x2)
-        y2 = int(y2)
-        z2 = int(z2)
-        self._check_value(x1)
-        self._check_value(y1)
-        self._check_value(z1)
-        self._check_value(x2)
-        self._check_value(y2)
-        self._check_value(z2)
         if x1 > x2 or y1 > y2 or z1 > z2:
             raise ValueError
         for x in range(x1, x2 + 1):
